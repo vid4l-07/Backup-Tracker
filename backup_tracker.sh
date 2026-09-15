@@ -8,6 +8,8 @@ SNAPSHOTS="$BACKUP_FOLDER/snapshots"
 
 INTERVAL_DAYS=5
 
+mkdir -p "$SNAPSHOTS"
+
 PREVIOUS=$(find "$SNAPSHOTS" \
     -mindepth 1 -maxdepth 1 -type d \
     | sort | tail -n 1)
@@ -16,8 +18,7 @@ PREVIOUS=$(find "$SNAPSHOTS" \
 if [[ -n "$PREVIOUS" ]]; then
 
     PREVIOUS_NAME=$(basename "$PREVIOUS")
-    PREVIOUS_DATE="${PREVIOUS_NAME//_/ }"
-    PREVIOUS_DATE="${PREVIOUS_DATE:0:10} ${PREVIOUS_DATE:11:2}:${PREVIOUS_DATE:14:2}:${PREVIOUS_DATE:17:2}"
+	PREVIOUS_DATE="${PREVIOUS_NAME//_/ }"
 
     if ! PREVIOUS_TIME=$(date -d "$PREVIOUS_DATE" +%s 2>/dev/null); then
 		# if invalid name -> new snapshot
@@ -30,9 +31,11 @@ fi
 if [[ -n "$PREVIOUS" ]]; then
 	CURRENT_TIME=$(date +%s)
 	ELAPSED=$((CURRENT_TIME - PREVIOUS_TIME))
-	INTERVAL=$((INTERVAL_DAYS * 86400))
+	# INTERVAL=$((INTERVAL_DAYS * 86400))
+	INTERVAL=0
 
 	if (( ELAPSED < INTERVAL )); then
+		echo "No ha pasado el tiempo"
 		exit 0
 	fi
 
@@ -49,7 +52,7 @@ if [[ -n "$PREVIOUS" ]]; then
 fi
 
 # Create a new snapshot
-SNAPSHOT="$SNAPSHOTS/$(date '+%Y-%m-%d_%H-%M-%S')"
+SNAPSHOT="$SNAPSHOTS/$(date '+%Y-%m-%d_%H:%M:%S')"
 
 mkdir -p "$SNAPSHOT"
 
@@ -66,3 +69,15 @@ else
         "$SNAPSHOT/"
 fi
 
+# Keep only the 5 most recent snapshots
+SNAPSHOT_COUNT=$(find "$SNAPSHOTS" \
+    -mindepth 1 -maxdepth 1 -type d \
+    | wc -l)
+
+if (( SNAPSHOT_COUNT > 5 )); then
+    find "$SNAPSHOTS" \
+        -mindepth 1 -maxdepth 1 -type d \
+        | sort \
+        | head -n $((SNAPSHOT_COUNT - 5)) \
+        | xargs rm -rf
+fi
