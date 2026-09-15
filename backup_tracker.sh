@@ -21,7 +21,8 @@ if [[ -n "$PREVIOUS" ]]; then
 	PREVIOUS_DATE="${PREVIOUS_NAME//_/ }"
 
     if ! PREVIOUS_TIME=$(date -d "$PREVIOUS_DATE" +%s 2>/dev/null); then
-		# if invalid name -> new snapshot
+		# Invalid snapshot name -> remove it and create a new snapshot
+		rm -rf "$PREVIOUS"
         PREVIOUS=""  
     fi
 fi
@@ -31,11 +32,9 @@ fi
 if [[ -n "$PREVIOUS" ]]; then
 	CURRENT_TIME=$(date +%s)
 	ELAPSED=$((CURRENT_TIME - PREVIOUS_TIME))
-	# INTERVAL=$((INTERVAL_DAYS * 86400))
-	INTERVAL=0
+	INTERVAL=$((INTERVAL_DAYS * 86400))
 
 	if (( ELAPSED < INTERVAL )); then
-		echo "No ha pasado el tiempo"
 		exit 0
 	fi
 
