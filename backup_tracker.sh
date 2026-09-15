@@ -10,6 +10,14 @@ INTERVAL_DAYS=5
 
 mkdir -p "$SNAPSHOTS"
 
+# Remove abandoned temporary snapshots
+find "$SNAPSHOTS" \
+    -mindepth 1 -maxdepth 1 \
+    -type d \
+    -name '*.tmp' \
+    -exec rm -rf {} +
+
+# Precious snapshot
 PREVIOUS=$(find "$SNAPSHOTS" \
     -mindepth 1 -maxdepth 1 -type d \
     | sort | tail -n 1)
@@ -52,21 +60,24 @@ fi
 
 # Create a new snapshot
 SNAPSHOT="$SNAPSHOTS/$(date '+%Y-%m-%d_%H:%M:%S')"
+TEMP_SNAPSHOT="$SNAPSHOT.tmp"
 
-mkdir -p "$SNAPSHOT"
+mkdir -p "$TEMP_SNAPSHOT"
 
 if [[ -n "$PREVIOUS" ]]; then
     rsync -a \
 		--delete \
         --link-dest="$PREVIOUS" \
         "$TRACKING_FOLDER/" \
-        "$SNAPSHOT/"
+        "$TEMP_SNAPSHOT/"
 else
     rsync -a \
 		--delete \
         "$TRACKING_FOLDER/" \
-        "$SNAPSHOT/"
+        "$TEMP_SNAPSHOT/"
 fi
+
+mv "$TEMP_SNAPSHOT" "$SNAPSHOT"
 
 # Keep only the 5 most recent snapshots
 SNAPSHOT_COUNT=$(find "$SNAPSHOTS" \
