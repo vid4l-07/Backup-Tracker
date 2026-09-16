@@ -2,15 +2,10 @@
 
 set -euo pipefail
 
-TRACKING_FOLDER="/home/hvidal/datos_lin/programacion/scripts/backup_tracker/org/"
-
-BACKUP_FOLDER="/home/hvidal/Descargas/backup"
-SNAPSHOTS="$BACKUP_FOLDER/snapshots"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/variables.env"
 
 INTERVAL_DAYS=5
-
-REMOTE="hvidal@localhost"
-SSH_PORT=22
 
 # Check connectivity
 if ! ssh -p "$SSH_PORT" -o ConnectTimeout=5 "$REMOTE" true 2>/dev/null; then

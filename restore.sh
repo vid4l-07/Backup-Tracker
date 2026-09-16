@@ -2,13 +2,8 @@
 
 set -euo pipefail
 
-RESTORE_FOLDER="/home/hvidal/datos_lin/programacion/scripts/backup_tracker/org/"
-
-BACKUP_FOLDER="/home/hvidal/Descargas/backup"
-SNAPSHOTS="$BACKUP_FOLDER/snapshots"
-
-REMOTE="hvidal@localhost"
-SSH_PORT=22
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/variables.env"
 
 # Check SSH connection
 if ! ssh -p "$SSH_PORT" -o ConnectTimeout=5 "$REMOTE" true 2>/dev/null; then
@@ -23,15 +18,17 @@ if [[ $# -ne 1 ]]; then
     exit 1
 fi
 
-SNAPSHOT="$1"
-REMOTE_SNAPSHOT="$SNAPSHOTS/$SNAPSHOT"
-
 # Check that the snapshot exists
+SNAPSHOT="$1"
+
 if ! ssh -p "$SSH_PORT" "$REMOTE" \
-    "test -d '$REMOTE_SNAPSHOT'"; then
+    "find '$SNAPSHOTS' -mindepth 1 -maxdepth 1 -type d -printf '%f\n'" | grep -Fxq -- "$SNAPSHOT"; then
+
     echo "Snapshot not found: $SNAPSHOT"
     exit 1
 fi
+
+REMOTE_SNAPSHOT="$SNAPSHOTS/$SNAPSHOT"
 
 CHANGES=$(
     rsync -ai \
@@ -39,10 +36,10 @@ CHANGES=$(
         --dry-run \
         -e "ssh -p $SSH_PORT" \
         "$REMOTE:$REMOTE_SNAPSHOT/" \
-        "$RESTORE_FOLDER/"
+        "$TRACKING_FOLDER/"
 )
 
-if [[ -z $CHANGES ]];then
+if [[ -z "$CHANGES" ]];then
 	echo "No changes"
 	exit 0
 fi
@@ -80,7 +77,7 @@ for FILE in "${DELETED[@]}"; do
 done
 
 echo
-read -r -p "Restore snapshot '$SNAPSHOT' to '$RESTORE_FOLDER'? [y/N] " CONFIRM
+read -r -p "Restore snapshot '$SNAPSHOT' to '$TRACKING_FOLDER'? [y/N] " CONFIRM
 
 if [[ "$CONFIRM" != "y" ]]; then
     echo "Restore cancelled."
@@ -92,4 +89,4 @@ rsync -a \
 	--delete \
     -e "ssh -p $SSH_PORT" \
     "$REMOTE:$REMOTE_SNAPSHOT/" \
-    "$RESTORE_FOLDER/"
+    "$TRACKING_FOLDER/"
