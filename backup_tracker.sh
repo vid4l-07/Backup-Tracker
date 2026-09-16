@@ -2,25 +2,31 @@
 
 set -euo pipefail
 
-BACKUP_FOLDER="/home/hvidal/backups/backup/"
-TRACKING_FOLDER="/home/hvidal/backups/org/"
+TRACKING_FOLDER="/home/hvidal/datos_lin/programacion/scripts/backup_tracker/org/"
+
+BACKUP_FOLDER="/home/hvidal/Descargas/backup"
 SNAPSHOTS="$BACKUP_FOLDER/snapshots"
 
 INTERVAL_DAYS=5
 
-mkdir -p "$SNAPSHOTS"
+REMOTE="hvidal@localhost"
+SSH_PORT=22
+
+ssh -p "$SSH_PORT" "$REMOTE" "mkdir -p '$SNAPSHOTS'"
 
 # Remove abandoned temporary snapshots
-find "$SNAPSHOTS" \
+ssh -p "$SSH_PORT" "$REMOTE" "find '$SNAPSHOTS' \
     -mindepth 1 -maxdepth 1 \
     -type d \
     -name '*.tmp' \
-    -exec rm -rf {} +
+    -exec rm -rf {} +"
 
-# Precious snapshot
-PREVIOUS=$(find "$SNAPSHOTS" \
+# Previous snapshot
+PREVIOUS=$(
+	ssh -p "$SSH_PORT" "$REMOTE" "find '$SNAPSHOTS' \
     -mindepth 1 -maxdepth 1 -type d \
-    | sort | tail -n 1)
+    | sort | tail -n 1"
+)
 
 # Parse the lastest snapshot date
 if [[ -n "$PREVIOUS" ]]; then
@@ -30,7 +36,7 @@ if [[ -n "$PREVIOUS" ]]; then
 
     if ! PREVIOUS_TIME=$(date -d "$PREVIOUS_DATE" +%s 2>/dev/null); then
 		# Invalid snapshot name -> remove it and create a new snapshot
-		rm -rf "$PREVIOUS"
+		ssh -p "$SSH_PORT" "$REMOTE" "rm -rf '$PREVIOUS'"
         PREVIOUS=""  
     fi
 fi
@@ -40,17 +46,21 @@ fi
 if [[ -n "$PREVIOUS" ]]; then
 	CURRENT_TIME=$(date +%s)
 	ELAPSED=$((CURRENT_TIME - PREVIOUS_TIME))
-	INTERVAL=$((INTERVAL_DAYS * 86400))
+	# INTERVAL=$((INTERVAL_DAYS * 86400))
+	INTERVAL=0
 
 	if (( ELAPSED < INTERVAL )); then
 		exit 0
 	fi
 
 
-	CHANGES=$(rsync -ai \
+	CHANGES=$(
+		rsync -ai \
 		--dry-run \
+		-e "ssh -p $SSH_PORT" \
 		"$TRACKING_FOLDER/" \
-		"$PREVIOUS/"
+		"$REMOTE:$PREVIOUS/" \
+		| grep -v '^\.d' || true
 	)
 
 	if [[ -z "$CHANGES" ]]; then
@@ -62,32 +72,36 @@ fi
 SNAPSHOT="$SNAPSHOTS/$(date '+%Y-%m-%d_%H:%M:%S')"
 TEMP_SNAPSHOT="$SNAPSHOT.tmp"
 
-mkdir -p "$TEMP_SNAPSHOT"
+ssh -p "$SSH_PORT" "$REMOTE" "mkdir -p '$TEMP_SNAPSHOT'"
 
 if [[ -n "$PREVIOUS" ]]; then
     rsync -a \
 		--delete \
+		-e "ssh -p $SSH_PORT" \
         --link-dest="$PREVIOUS" \
         "$TRACKING_FOLDER/" \
-        "$TEMP_SNAPSHOT/"
+        "$REMOTE:$TEMP_SNAPSHOT/"
 else
     rsync -a \
 		--delete \
+		-e "ssh -p $SSH_PORT" \
         "$TRACKING_FOLDER/" \
-        "$TEMP_SNAPSHOT/"
+        "$REMOTE:$TEMP_SNAPSHOT/"
 fi
 
-mv "$TEMP_SNAPSHOT" "$SNAPSHOT"
+ssh -p "$SSH_PORT" "$REMOTE" "mv '$TEMP_SNAPSHOT' '$SNAPSHOT'"
 
 # Keep only the 5 most recent snapshots
-SNAPSHOT_COUNT=$(find "$SNAPSHOTS" \
+SNAPSHOT_COUNT=$(
+	ssh -p "$SSH_PORT" "$REMOTE" "find '$SNAPSHOTS' \
     -mindepth 1 -maxdepth 1 -type d \
-    | wc -l)
+    | wc -l"
+)
 
 if (( SNAPSHOT_COUNT > 5 )); then
-    find "$SNAPSHOTS" \
+    ssh -p "$SSH_PORT" "$REMOTE" "find '$SNAPSHOTS' \
         -mindepth 1 -maxdepth 1 -type d \
         | sort \
         | head -n $((SNAPSHOT_COUNT - 5)) \
-        | xargs rm -rf
+        | xargs rm -rf"
 fi
