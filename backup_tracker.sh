@@ -12,6 +12,13 @@ INTERVAL_DAYS=5
 REMOTE="hvidal@localhost"
 SSH_PORT=22
 
+# Check connectivity
+if ! ssh -p "$SSH_PORT" -o ConnectTimeout=5 "$REMOTE" true 2>/dev/null; then
+	echo "Could not connect"
+    exit 1
+fi
+
+# Create backups folder
 ssh -p "$SSH_PORT" "$REMOTE" "mkdir -p '$SNAPSHOTS'"
 
 # Remove abandoned temporary snapshots
