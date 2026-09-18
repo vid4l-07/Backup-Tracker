@@ -1,0 +1,10 @@
+# /etc/systemd/system/backup.service
+
+[Unit]
+Description=Backup script
+
+[Service]
+Type=oneshot
+User=hvidal
+Group=hvidal
+ExecStart=/bin/bash /home/hvidal/datos_lin/programacion/scripts/backup_tracker/backup_tracker.sh

@@ -2,16 +2,30 @@
 
 set -euo pipefail
 
+log() {
+    echo "$(date '+%Y-%m-%d_%H:%M:%S') - $*"
+}
+
+error() {
+    echo "$(date '+%Y-%m-%d_%H:%M:%S') - $*" >&2
+}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/variables.env"
 
 INTERVAL_DAYS=5
 
+if ! ping -c 1 -W 5 "$IP" >/dev/null 2>&1; then
+	exit 1
+fi
+
 # Check connectivity
 if ! ssh -p "$SSH_PORT" -o ConnectTimeout=5 "$REMOTE" true 2>/dev/null; then
-	echo "Could not connect"
+	error "Could not connect via SSH"
     exit 1
 fi
+
+log "SSH connection established"
 
 # Create backups folder
 ssh -p "$SSH_PORT" "$REMOTE" "mkdir -p '$SNAPSHOTS'"
@@ -32,12 +46,13 @@ PREVIOUS=$(
 
 # Parse the lastest snapshot date
 if [[ -n "$PREVIOUS" ]]; then
-
     PREVIOUS_NAME=$(basename "$PREVIOUS")
 	PREVIOUS_DATE="${PREVIOUS_NAME//_/ }"
 
     if ! PREVIOUS_TIME=$(date -d "$PREVIOUS_DATE" +%s 2>/dev/null); then
 		# Invalid snapshot name -> remove it and create a new snapshot
+		error "Invalid snapshot name: $PREVIOUS_NAME, removing it"
+
 		ssh -p "$SSH_PORT" "$REMOTE" "rm -rf '$PREVIOUS'"
         PREVIOUS=""  
     fi
@@ -66,8 +81,12 @@ if [[ -n "$PREVIOUS" ]]; then
 	)
 
 	if [[ -z "$CHANGES" ]]; then
+		log "No changes found"
 		exit 0
 	fi
+
+	CHANGE_COUNT=$(printf '%s\n' "$CHANGES" | wc -l)
+	log "Changes detected: $CHANGE_COUNT"
 fi
 
 # Create a new snapshot
@@ -77,6 +96,7 @@ TEMP_SNAPSHOT="$SNAPSHOT.tmp"
 ssh -p "$SSH_PORT" "$REMOTE" "mkdir -p '$TEMP_SNAPSHOT'"
 
 if [[ -n "$PREVIOUS" ]]; then
+	log "Creating incremental snapshot: $SNAPSHOT"
     rsync -a \
 		--delete \
 		-e "ssh -p $SSH_PORT" \
@@ -84,6 +104,7 @@ if [[ -n "$PREVIOUS" ]]; then
         "$TRACKING_FOLDER/" \
         "$REMOTE:$TEMP_SNAPSHOT/"
 else
+	log "Creating full snapshot: $SNAPSHOT"
     rsync -a \
 		--delete \
 		-e "ssh -p $SSH_PORT" \
@@ -92,6 +113,7 @@ else
 fi
 
 ssh -p "$SSH_PORT" "$REMOTE" "mv '$TEMP_SNAPSHOT' '$SNAPSHOT'"
+log "Backup completed successfully"
 
 # Keep only the 5 most recent snapshots
 SNAPSHOT_COUNT=$(
@@ -101,6 +123,8 @@ SNAPSHOT_COUNT=$(
 )
 
 if (( SNAPSHOT_COUNT > 5 )); then
+	log "Removing $(SNAPSHOT_COUNT - 5) old snapshots"
+
     ssh -p "$SSH_PORT" "$REMOTE" "find '$SNAPSHOTS' \
         -mindepth 1 -maxdepth 1 -type d \
         | sort \

@@ -85,6 +85,8 @@ if [[ "$CONFIRM" != "y" ]]; then
 fi
 
 # Restore snapshot
+mkdir -p "$TRACKING_FOLDER"
+
 rsync -a \
 	--delete \
     -e "ssh -p $SSH_PORT" \
