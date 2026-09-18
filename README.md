@@ -101,18 +101,6 @@ Deja solo la siguiente linea si lo usas como servicio de `systemd`.
 ```
 
 
-## Ejemplo de flujo
-
-```
-Backup exitoso             → ./backup/
-                             └── snapshots/
-                                 ├── 2026-09-10_08:00:00/
-                                 ├── 2026-09-12_08:00:00/
-                                 ├── 2026-09-14_08:00:00/
-                                 ├── 2026-09-16_08:00:00/
-                                 └── 2026-09-18_09:30:00/   (último)
-```
-
 Cada snapshot es un directorio completo (gracias a los hard links); el consumo de disco extra es mínimo entre copias consecutivas.
 
 ## Notas
