@@ -17,6 +17,7 @@ echo
 LOGIN_USER="${USER:-$(whoami)}"
 LOGIN_IP="localhost"
 LOGIN_PORT=22
+DAYS=5
 HAS_CONFIG=0
 
 if [[ -f "$ENV_FILE" ]]; then
@@ -25,6 +26,7 @@ if [[ -f "$ENV_FILE" ]]; then
     LOGIN_USER="${USER:-$LOGIN_USER}"
     LOGIN_IP="${IP:-$LOGIN_IP}"
     LOGIN_PORT="${SSH_PORT:-22}"
+    DAYS="${INTERVAL_DAYS:-$DAYS}"
     HAS_CONFIG=1
 fi
 
@@ -66,6 +68,11 @@ fi
 LOGIN_IP=$(ask "Server IP" "$LOGIN_IP")
 LOGIN_USER=$(ask "SSH user" "$LOGIN_USER")
 LOGIN_PORT=$(ask "SSH port" "$LOGIN_PORT")
+DAYS=$(ask "Interval days between backups" "$DAYS")
+while [[ ! "$DAYS" =~ ^[0-9]+$ ]]; do
+    echo "WARNING: '$DAYS' is not a valid number (positive integer, 0 disables the check)."
+    read -r -p "Interval days between backups: " DAYS
+done
 
 echo
 while true; do
@@ -94,6 +101,7 @@ TRACKING_FOLDER="$TRACKING_FOLDER"
 
 BACKUP_FOLDER="$BACKUP_FOLDER"
 SNAPSHOTS="$BACKUP_FOLDER/snapshots"
+INTERVAL_DAYS=$DAYS
 
 IP="$LOGIN_IP"
 USER="$LOGIN_USER"
@@ -159,3 +167,4 @@ if [[ "$USE_SERVICE" == "y" ]]; then
 	echo
 	echo "4) To view the logs run journalctl -u backup.service"
 fi
+

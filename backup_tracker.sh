@@ -13,8 +13,6 @@ error() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/variables.env"
 
-INTERVAL_DAYS=5
-
 if ! ping -c 1 -W 5 "$IP" >/dev/null 2>&1; then
 	exit 1
 fi
@@ -63,8 +61,7 @@ fi
 if [[ -n "$PREVIOUS" ]]; then
 	CURRENT_TIME=$(date +%s)
 	ELAPSED=$((CURRENT_TIME - PREVIOUS_TIME))
-	# INTERVAL=$((INTERVAL_DAYS * 86400))
-	INTERVAL=0
+	INTERVAL=$((INTERVAL_DAYS * 86400))
 
 	if (( ELAPSED < INTERVAL )); then
 		exit 0

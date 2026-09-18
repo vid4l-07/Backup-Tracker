@@ -37,12 +37,11 @@ You can also edit `variables.env` manually:
 | `TRACKING_FOLDER` | Local folder to back up                      | `/path/to/folder`                |
 | `BACKUP_FOLDER`   | Base folder on the remote server             | `/remote/path/backup`            |
 | `SNAPSHOTS`       | Folder where snapshots are stored            | `$BACKUP_FOLDER/snapshots`       |
+| `INTERVAL_DAYS`   | Minimum days between snapshots               | `5`                              |
 | `IP`              | Host of the remote server                    | `localhost`                      |
 | `USER`            | SSH user                                     | `user`                           |
 | `REMOTE`          | Combined user and host (`USER@IP`)           | `user@localhost`                 |
 | `SSH_PORT`        | SSH port                                     | `22`                             |
-
-> `INTERVAL_DAYS` in `backup_tracker.sh` defines the minimum interval (in days) between snapshots. Currently set to `0` (an interval check is performed, but the threshold is disabled); set it to the desired number of days to enable it.
 
 ## Usage
 
@@ -94,11 +93,11 @@ journalctl -u backup.service
 
 > [!Note]
 > On systems with SELinux you may need:
-
-```bash
-sudo setsebool -P rsync_client 1
-sudo setsebool -P rsync_export_all_ro 1
-```
+>
+> ```bash
+> sudo setsebool -P rsync_client 1
+> sudo setsebool -P rsync_export_all_ro 1
+> ```
 
 ### NetworkManager dispatcher
 
