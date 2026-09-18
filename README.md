@@ -1,85 +1,99 @@
 # Backup Tracker
 
-Sistema de copias de seguridad incremental (snapshots) de una carpeta local hacia un servidor remoto vía SSH, con restauración interactiva y rotación automática.
+Incremental backup (snapshot) system for a local folder to a remote server over SSH, with interactive restore and automatic rotation.
 
-## Características
+## Features
 
-- **Snapshots incrementales** mediante `rsync` + `--link-dest` (hard links), ahorrando espacio y tiempo.
-- **Rotación automática**: conserva únicamente los 5 snapshots más recientes.
-- **Comprobación de conectividad** previa (ping + SSH) antes de iniciar la copia.
-- **Detección de cambios**: omite la creación de un nuevo snapshot si no hay modificaciones.
-- **Snapshots temporales**: las copias se realizan en un directorio `.tmp` y se renombran solo al terminar correctamente, evitando snapshots corruptos o a medias.
-- **Restauración interactiva** con vista previa de cambios (añadidos, modificados, eliminados) y confirmación.
-- Preparado para ejecutarse como servicio **systemd** o desde **NetworkManager dispatcher**.
+- **Incremental snapshots** using `rsync` + `--link-dest` (hard links), saving disk space and time.
+- **Automatic rotation**: keeps only the 5 most recent snapshots.
+- **Change detection**: skips creating a new snapshot when nothing has changed.
+- **Temporary snapshots**: copies are written to a `.tmp` directory and renamed only on successful completion, preventing corrupt or partial snapshots.
+- **Interactive restore** with a preview of changes (added, modified, deleted) and confirmation before overwriting.
+- **Automated setup**: `setup.sh` generates the config file and optional `systemd` / NetworkManager dispatcher files.
 
-## Requisitos
+## Requirements
 
 - `bash`, `rsync`, `ssh`, `ping`
-- Acceso SSH por clave al servidor remoto
+- SSH key access to the remote server (no password prompts)
+- `rsync` installed on the remote server
 
-## Configuración
+## Setup
 
-Edita `variables.env`:
+Run the setup script. It asks for the folder to track, the backup folder, the server credentials, and whether to create the systemd service:
 
-| Variable          | Descripción                                  | Ejemplo                          |
+```bash
+./setup.sh
+```
+
+The script writes `variables.env`, `10-launch.sh` and, optionaly, `backup.service`, then prints the remaining steps (copying the files to their system locations, and any SELinux/systemd commands).
+
+> [!WARNING]
+> Do not move the project folder after running setup. `backup.service` and `10-launch.sh` reference absolute paths. If you move it, re-run `./setup.sh`.
+
+You can also edit `variables.env` manually:
+
+| Variable          | Description                                  | Example                          |
 |-------------------|----------------------------------------------|----------------------------------|
-| `TRACKING_FOLDER` | Carpeta local a respaldar                    | `/ruta/a/la/carpeta/`            |
-| `BACKUP_FOLDER`   | Carpeta base en el servidor remoto           | `/ruta/remota/backup`            |
-| `SNAPSHOTS`       | Carpeta donde se guardan los snapshots       | `$BACKUP_FOLDER/snapshots`       |
-| `IP`              | Host del servidor remoto                     | `localhost`                      |
-| `USER`            | Usuario SSH                                  | `hvidal`                         |
-| `REMOTE`          | Usuario y host combinados (`USER@IP`)        | `hvidal@localhost`               |
-| `SSH_PORT`        | Puerto SSH                                   | `22`                             |
+| `TRACKING_FOLDER` | Local folder to back up                      | `/path/to/folder`                |
+| `BACKUP_FOLDER`   | Base folder on the remote server             | `/remote/path/backup`            |
+| `SNAPSHOTS`       | Folder where snapshots are stored            | `$BACKUP_FOLDER/snapshots`       |
+| `IP`              | Host of the remote server                    | `localhost`                      |
+| `USER`            | SSH user                                     | `user`                           |
+| `REMOTE`          | Combined user and host (`USER@IP`)           | `user@localhost`                 |
+| `SSH_PORT`        | SSH port                                     | `22`                             |
 
-> La variable `INTERVAL_DAYS` en `backup_tracker.sh` define el intervalo mínimo (en días) entre snapshots.
+> `INTERVAL_DAYS` in `backup_tracker.sh` defines the minimum interval (in days) between snapshots. Currently set to `0` (an interval check is performed, but the threshold is disabled); set it to the desired number of days to enable it.
 
-## Uso
+## Usage
 
-### Crear un backup
+### Create a backup
 
 ```bash
 ./backup_tracker.sh
 ```
 
-El script:
-1. Verifica conectividad (ping + SSH).
-2. Limpia snapshots temporales abandonados.
-3. Compara la carpeta local con el último snapshot.
-4. Si no hay cambios, termina sin crear un nuevo snapshot.
-5. Crea un snapshot incremental (`--delete`), lo renombra y rota los antiguos (máx. 5).
+The script:
+1. Verifies connectivity (ping + SSH).
+2. Cleans up abandoned temporary snapshots.
+3. Compares the local folder with the latest snapshot; exits if nothing changed.
+4. Creates an incremental snapshot (`--delete`), renames it from `.tmp` to its final name, and rotates old ones (keeps max. 5).
 
-### Restaurar un snapshot
+### Restore a snapshot
+
+Show available snapshots and the changes they contain:
 
 ```bash
 ./restore.sh
 ```
 
-Muestra una lista de snapshots disponibles. Para restaurar uno concreto:
+Restore a specific snapshot:
 
 ```bash
 ./restore.sh 2026-09-18_12:00:00
 ```
 
-Muestra los cambios (añadidos, modificados, eliminados) y pide confirmación antes de sobrescribir la carpeta local.
+It shows the changes (added, modified, deleted) and asks for confirmation before overwriting the local folder.
 
-## Automatización
+## Automation
 
-### systemd (servicio `oneshot`)
+### systemd (oneshot service)
 
-Copia `backup.service` a `/etc/systemd/system/`:
+`setup.sh` generates `backup.service`. Copy it and load it:
 
 ```bash
 sudo cp backup.service /etc/systemd/system/
 sudo systemctl daemon-reload
+sudo systemctl start backup.service
 ```
 
-Los logs se consultan con:
+Watch the logs:
 
 ```bash
 journalctl -u backup.service
 ```
 
-Nota: en sistemas con SELinux puede necesitar:
+> [!Note]
+> On systems with SELinux you may need:
 
 ```bash
 sudo setsebool -P rsync_client 1
@@ -88,22 +102,12 @@ sudo setsebool -P rsync_export_all_ro 1
 
 ### NetworkManager dispatcher
 
-Copia `10-launch.sh` a `/etc/NetworkManager/dispatcher.d/`, de modo que el backup se ejecute automáticamente al conectarse la red:
+`setup.sh` generates `10-launch.sh`, so the backup runs automatically when the network comes up:
 
 ```bash
 sudo cp 10-launch.sh /etc/NetworkManager/dispatcher.d/
 ```
 
-Deja solo la siguiente linea si lo usas como servicio de `systemd`.
-```bash
-+	systemctl start backup.service
--	# runuser -u hvidal -- /home/hvidal/datos_lin/programacion/scripts/backup_tracker/backup_tracker.sh
-```
+## How snapshots work
 
-
-Cada snapshot es un directorio completo (gracias a los hard links); el consumo de disco extra es mínimo entre copias consecutivas.
-
-## Notas
-
-- Las carpetas `org/` y `backup/` están excluidas del control de versiones.
-- El snapshot se crea primero en `<nombre>.tmp` y se renombra solo al finalizar, protegiendo la integridad ante cortes o errores.
+Each snapshot is a full directory thanks to hard links; the extra disk usage between consecutive snapshots is minimal. Unchanged files are hard-linked to the previous snapshot, and `--delete` removes files that no longer exist in the tracked folder.

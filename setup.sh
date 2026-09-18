@@ -7,9 +7,9 @@ ENV_FILE="$SCRIPT_DIR/variables.env"
 MAIN_SCRIPT="$SCRIPT_DIR/backup_tracker.sh"
 
 echo "======================================================================"
-echo "  AVISO: NO muevas esta carpeta ni sus archivos despues de configurar."
-echo "  backup.service y 10-launch.sh apuntaran a estas rutas absolutas."
-echo "  Si la mueves, vuelve a ejecutar ./setup.sh."
+echo "  WARNING: Do not move this folder or its files after configuring."
+echo "  backup.service and 10-launch.sh point to these absolute paths."
+echo "  If you move it, re-run ./setup.sh."
 echo "======================================================================"
 echo
 
@@ -47,45 +47,45 @@ echo "=== Backup Tracker setup ==="
 echo
 
 if [[ $HAS_CONFIG -eq 1 ]]; then
-    TRACKING_FOLDER=$(ask "Carpeta a rastrear" "$TRACKING_FOLDER")
+    TRACKING_FOLDER=$(ask "Folder to track" "$TRACKING_FOLDER")
 else
-    TRACKING_FOLDER=$(require "Carpeta a rastrear")
+    TRACKING_FOLDER=$(require "Folder to track")
 fi
 
 while [[ ! -d "$TRACKING_FOLDER" ]]; do
-    echo "AVISO: '$TRACKING_FOLDER' no existe, introduce una carpeta valida."
-    TRACKING_FOLDER=$(require "Carpeta a rastrear")
+    echo "WARNING: '$TRACKING_FOLDER' does not exist, enter a valid folder."
+    TRACKING_FOLDER=$(require "Folder to track")
 done
 
 if [[ $HAS_CONFIG -eq 1 ]]; then
-    BACKUP_FOLDER=$(ask "Carpeta donde guardar los backups" "$BACKUP_FOLDER")
+    BACKUP_FOLDER=$(ask "Folder where to store the backups" "$BACKUP_FOLDER")
 else
-    BACKUP_FOLDER=$(require "Carpeta donde guardar los backups en el servidor")
+    BACKUP_FOLDER=$(require "Folder where to store the backups on the server")
 fi
 
-LOGIN_IP=$(ask "IP del servidor" "$LOGIN_IP")
-LOGIN_USER=$(ask "Usuario SSH" "$LOGIN_USER")
-LOGIN_PORT=$(ask "Puerto SSH" "$LOGIN_PORT")
+LOGIN_IP=$(ask "Server IP" "$LOGIN_IP")
+LOGIN_USER=$(ask "SSH user" "$LOGIN_USER")
+LOGIN_PORT=$(ask "SSH port" "$LOGIN_PORT")
 
 echo
 while true; do
-    read -r -p "Configurar backup.service (systemd)? [y/N] " USE_SERVICE
+    read -r -p "Set up backup.service (systemd)? [y/N] " USE_SERVICE
     USE_SERVICE="${USE_SERVICE,,}"
     [[ -z "$USE_SERVICE" ]] && USE_SERVICE="n"
     [[ "$USE_SERVICE" == "y" || "$USE_SERVICE" == "n" ]] && break
 done
 
 echo
-echo "=== Resumen ==="
-echo "Carpeta a rastrear : $TRACKING_FOLDER"
-echo "Carpeta de backups : $BACKUP_FOLDER"
-echo "Servidor           : $LOGIN_USER@$LOGIN_IP:$LOGIN_PORT"
-echo "Servicio systemd   : $USE_SERVICE"
+echo "=== Summary ==="
+echo "Folder to track    : $TRACKING_FOLDER"
+echo "Backup folder      : $BACKUP_FOLDER"
+echo "Server             : $LOGIN_USER@$LOGIN_IP:$LOGIN_PORT"
+echo "systemd service    : $USE_SERVICE"
 echo
 
-read -r -p "Escribir los archivos? [y/N] " CONFIRM
+read -r -p "Write the files? [y/N] " CONFIRM
 if [[ "$CONFIRM" != "y" ]]; then
-    echo "Cancelado."
+    echo "Cancelled."
     exit 0
 fi
 
@@ -135,27 +135,27 @@ EOF
 chmod +x "$SCRIPT_DIR/10-launch.sh"
 
 echo
-echo "Archivos creados:"
+echo "Created files:"
 echo "  $ENV_FILE"
 echo "  $SCRIPT_DIR/10-launch.sh"
 [[ "$USE_SERVICE" == "y" ]] && echo "  $SCRIPT_DIR/backup.service"
 
 echo
-echo "Siguientes pasos:"
+echo "Next steps:"
 echo
-echo "1) Copiar los archivos:"
+echo "1) Copy the files:"
 echo "   sudo cp $SCRIPT_DIR/10-launch.sh /etc/NetworkManager/dispatcher.d/"
 [[ "$USE_SERVICE" == "y" ]] && echo "   sudo cp $SCRIPT_DIR/backup.service /etc/systemd/system/"
 echo
 
 if [[ "$USE_SERVICE" == "y" ]]; then
-    echo "2) Ejecuta estos comandos para eliminar los errores de SELinux:"
+    echo "2) Run these commands to fix SELinux errors:"
     echo "   sudo setsebool -P rsync_client 1"
     echo "   sudo setsebool -P rsync_export_all_ro 1"
     echo
-    echo "3) Recarga systemd y arranca el servicio:"
+    echo "3) Reload systemd and start the service:"
     echo "   sudo systemctl daemon-reload"
     echo "   sudo systemctl restart backup.service"
 	echo
-	echo "4) Para ver los logs ejecuta journalctl -u backup.service"
+	echo "4) To view the logs run journalctl -u backup.service"
 fi
