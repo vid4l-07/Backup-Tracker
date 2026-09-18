@@ -1,4 +1,7 @@
 # /etc/systemd/system/backup.service
+# sudo setsebool -P rsync_client 1
+# sudo setsebool -P rsync_export_all_ro 1
+# systemctl restart backup.service
 
 [Unit]
 Description=Backup script
